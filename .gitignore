@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.pyc
+.python-version
+
+# IDE / local tooling
+.cursor/
+.codex/
+.agents/
+.vscode/
+
+# OS / misc
+.DS_Store
+
+# Runtime/output artifacts
+output/
+
+# Secrets
+.env
+.env.*

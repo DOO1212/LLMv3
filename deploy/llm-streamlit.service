@@ -1,0 +1,14 @@
+[Unit]
+Description=LLM Streamlit App
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/LLM
+ExecStart=/home/ubuntu/LLM/scripts/start_streamlit.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

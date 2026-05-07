@@ -62,14 +62,6 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
             "검색어를 조금 더 구체적으로 바꿔서 다시 시도해 주세요."
         ),
         "llm_empty": "로컬 Llama fallback 응답을 받았지만 표시할 텍스트가 비어 있습니다.",
-        "po_title": "📋 발주서 초안 (부족 재고)",
-        "po_intro_fallback": "안전재고보다 현재고가 적은 품목 {n:,}건입니다. 발주수량 열을 필요에 맞게 수정하세요.",
-        "po_empty": "조건에 맞는 부족 재고 품목이 없습니다.",
-        "po_note": "발주수량 열만 직접 수정할 수 있습니다.",
-        "po_col_current_stock": "현재고",
-        "po_col_safety_stock": "안전재고",
-        "po_col_shortage": "부족수량",
-        "po_col_order_qty": "발주수량",
     },
     "en": {
         "page_title": "Inventory search",

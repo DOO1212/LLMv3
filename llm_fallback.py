@@ -8,8 +8,13 @@ from threading import Lock
 import urllib.error
 import urllib.request
 
-import torch
-from transformers import AutoModelForImageTextToText, AutoProcessor
+try:
+    import torch
+    from transformers import AutoModelForImageTextToText, AutoProcessor
+except ModuleNotFoundError:
+    torch = None
+    AutoModelForImageTextToText = None
+    AutoProcessor = None
 
 from i18n import t as t_ui
 
@@ -37,6 +42,10 @@ def _get_llm_backend():
 
 def _load_local_model():
     global _LOCAL_MODEL, _LOCAL_PROCESSOR
+    if torch is None or AutoProcessor is None or AutoModelForImageTextToText is None:
+        raise RuntimeError(
+            "local_transformers 백엔드를 사용하려면 torch/transformers를 설치해야 합니다."
+        )
     if _LOCAL_MODEL is not None and _LOCAL_PROCESSOR is not None:
         return _LOCAL_MODEL, _LOCAL_PROCESSOR
     with _LOCAL_LOAD_LOCK:

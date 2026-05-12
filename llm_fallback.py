@@ -20,7 +20,10 @@ from i18n import t as t_ui
 
 
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
-DEFAULT_LLAMA_MODEL = "llama3.3:70b"
+DEFAULT_LLAMA_MODEL = "llama3.1:8b"
+# 스니펫·질의 번역 기본: 메인과 동일(미리 번역·실시간 모두). 바꾸려면 TRANSLATION_MODEL.
+# 모델명에 translategemma 가 들어가면 `build_translategemma_prompt` 경로를 쓴다.
+DEFAULT_TRANSLATION_MODEL = DEFAULT_LLAMA_MODEL
 DEFAULT_OLLAMA_TIMEOUT = 240
 DEFAULT_LLM_BACKEND = "ollama"
 
@@ -38,6 +41,49 @@ def get_ollama_timeout():
 
 def _get_llm_backend():
     return os.environ.get("LLM_BACKEND", DEFAULT_LLM_BACKEND).strip().lower()
+
+
+def get_translation_model() -> str:
+    return os.environ.get("TRANSLATION_MODEL", DEFAULT_TRANSLATION_MODEL).strip()
+
+
+def get_manual_intent_model() -> str | None:
+    """매뉴얼 intent_query 정제. 미설정이면 None → `generate_text`가 메인 LLAMA_MODEL(기본 llama3.1 8b) 사용."""
+    v = os.environ.get("MANUAL_INTENT_MODEL", "").strip()
+    return v or None
+
+
+# TranslateGemma 문서: 언어명(영문) + ISO 639-1 코드
+TRANSLATION_LOCALE_ISO: dict[str, tuple[str, str]] = {
+    "ko": ("Korean", "ko"),
+    "en": ("English", "en"),
+    "th": ("Thai", "th"),
+    "vi": ("Vietnamese", "vi"),
+    "id": ("Indonesian", "id"),
+    "ms": ("Malay", "ms"),
+}
+
+
+def uses_translategemma_translation() -> bool:
+    return "translategemma" in get_translation_model().lower()
+
+
+def build_translategemma_prompt(
+    source_lang_en: str,
+    source_code: str,
+    target_lang_en: str,
+    target_code: str,
+    text: str,
+) -> str:
+    """Ollama TranslateGemma 라이브러리 권장 단일 프롬프트. 본문 앞에 빈 한 줄."""
+    return (
+        f"You are a professional {source_lang_en} ({source_code}) to {target_lang_en} ({target_code}) translator. "
+        f"Your goal is to accurately convey the meaning and nuances of the original {source_lang_en} text while adhering to "
+        f"{target_lang_en} grammar, vocabulary, and cultural sensitivities.\n"
+        f"Produce only the {target_lang_en} translation, without any additional explanations or commentary. "
+        f"Please translate the following {source_lang_en} text into {target_lang_en}:\n\n"
+        f"{text}"
+    )
 
 
 def _load_local_model():
@@ -68,16 +114,26 @@ def warmup_local_model() -> None:
     _load_local_model()
 
 
-def generate_text(prompt: str, max_new_tokens: int = 512, temperature: float = 0.7) -> str | None:
+def generate_text(
+    prompt: str,
+    max_new_tokens: int = 512,
+    temperature: float = 0.7,
+    model: str | None = None,
+) -> str | None:
     backend = _get_llm_backend()
     if backend == "ollama":
         ollama_url = os.environ.get("OLLAMA_URL", DEFAULT_OLLAMA_URL)
-        model = os.environ.get("LLAMA_MODEL", DEFAULT_LLAMA_MODEL)
+        model_name = model or os.environ.get("LLAMA_MODEL", DEFAULT_LLAMA_MODEL)
         timeout = get_ollama_timeout()
         payload = {
-            "model": model,
+            "model": model_name,
             "prompt": prompt,
             "stream": False,
+            # Ollama는 max_new_tokens 인자를 무시하면 기본 num_predict로 생성해 느리거나 잘릴 수 있다.
+            "options": {
+                "temperature": temperature,
+                "num_predict": max_new_tokens,
+            },
         }
         request = urllib.request.Request(
             ollama_url,
@@ -88,7 +144,7 @@ def generate_text(prompt: str, max_new_tokens: int = 512, temperature: float = 0
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 response_data = json.loads(response.read().decode("utf-8"))
-        except urllib.error.URLError:
+        except (urllib.error.URLError, TimeoutError, OSError):
             return None
         return (response_data.get("response") or "").strip() or None
 

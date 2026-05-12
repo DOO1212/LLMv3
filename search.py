@@ -24,6 +24,7 @@ def row_to_result(row, rank):
             "product_code": row["product_code"],
             "price": row["price"],
             "stock": row["stock"],
+            "safety_stock": row["safety_stock"],
             "warehouse": row["warehouse"],
             "category": row["category"],
             "brand": row["brand"],

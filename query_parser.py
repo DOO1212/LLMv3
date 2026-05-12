@@ -6,6 +6,21 @@ import re
 
 from config import KEYWORD_STRIP_WORDS, TOP_K
 
+# "여기에 있는" 같은 오탐 방지 (extract_warehouse_value 위치 구문)
+_WAREHOUSE_LOCATION_SKIP = frozenset(
+    {
+        "창고",
+        "공급업체",
+        "상품",
+        "품목",
+        "제품",
+        "여기",
+        "거기",
+        "해당",
+        "우리",
+    }
+)
+
 
 def parse_korean_money(text):
     if text is None:
@@ -184,7 +199,16 @@ def extract_labeled_value(query, label):
 
 
 def extract_warehouse_value(query):
-    return extract_labeled_value(query, "창고")
+    labeled = extract_labeled_value(query, "창고")
+    if labeled:
+        return labeled
+    # "이천에 있는 우유", "인천에 있는 패딩" → 창고명만 추출 (창고 레이블 없을 때)
+    match = re.search(r"([가-힣]{2,8})에\s*있는", query)
+    if match:
+        loc = match.group(1).strip()
+        if loc not in _WAREHOUSE_LOCATION_SKIP:
+            return loc or None
+    return None
 
 
 def extract_supplier_value(query):
@@ -267,6 +291,7 @@ def extract_category_keyword(query):
 
 def extract_product_keyword(query):
     keyword = query
+    keyword = re.sub(r"[가-힣]{2,8}에\s*있는\s*", " ", keyword)
     keyword = re.sub(r"[^\s]+\s*카테고리", " ", keyword)
     keyword = re.sub(r"[^\s].*?\s*창고(?:에|에서|의|만|인|으로|를|은|는|이|가)?", " ", keyword)
     keyword = re.sub(r"[^\s].*?\s*공급업체(?:의|만|인|를|은|는|이|가)?", " ", keyword)

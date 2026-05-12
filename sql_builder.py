@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import re
+
 from config import QUALITY_DEFECT_VALUES, QUALITY_OK_VALUES
+from config.search import compress_keyword_tokens
 
 
 SELECT_INVENTORY_ITEMS = """
@@ -41,9 +44,15 @@ def build_search_sql(parsed_query):
 
     keyword = parsed_query.get("keyword")
     if keyword is not None:
-        sql += " AND (product_name LIKE ? OR raw_text LIKE ?)"
-        like_keyword = f"%{keyword}%"
-        params.extend([like_keyword, like_keyword])
+        keyword_terms = compress_keyword_tokens(
+            [t for t in re.split(r"\s+", str(keyword).strip()) if t]
+        )
+        if not keyword_terms:
+            keyword_terms = [str(keyword).strip()]
+        for term in keyword_terms:
+            sql += " AND (product_name LIKE ? OR raw_text LIKE ?)"
+            like_keyword = f"%{term}%"
+            params.extend([like_keyword, like_keyword])
 
     product_code = parsed_query.get("product_code")
     if product_code is not None:
